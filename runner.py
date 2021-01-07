@@ -17,6 +17,8 @@ import requests
 
 apiurl = 'https://haveibeenpwned.com/api/v3'
 reportout = ''
+lnamefile = "lnames.txt"
+fnamefile = "fnames.txt"
 
 def jsonchonker(thisjason):
         #grabs all the important stuff and creates a str array
@@ -37,7 +39,7 @@ def checkdomain(query, apikey):
         req = requests.get(apiendpoint, headers=headerboi)
         jason = jsonchonker(req.json())
         if jason is not None:
-                #start drilldown func get here for known good breach
+                #start drilldown func here for good hit
                 print(jason)
         else:
                 print("Nothing found for " + query)
@@ -49,13 +51,27 @@ def checkaccount(query, apikey):
         req = requests.get(apiendpoint, headers=headerboi)
         print(req.content)
 
+def genfirstdotlast(fnames, lnames, domain):
+        for lname in lnames:
+                for fname in fnames:
+                        print(fname.replace("\n", '') + "." + lname.replace("\n", "") + domain)
+
+def genletterdotlast(lnames, domain):
+        alphabet = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']
+        for lname in lnames:
+                for letter in alphabet:
+                        print(letter + lname.replace("\n", '') + domain)
 
 ###MAIN STARTS HERE
+#testing namegen...
+genfirstdotlast(open(fnamefile, 'r').readlines(), open(lnamefile, 'r').readlines(), "@chonkerdomain.net")
+genletterdotlast(open(lnamefile, 'r').readlines(), "@chonkerdomain.net")
+
 #get apikey, make it global later on
-with open('apikey.txt', 'r') as apifile:
-        apikey = apifile.read().replace('\n','')
+#with open('apikey.txt', 'r') as apifile:
+#       apikey = apifile.read().replace('\n','')
 #get target list, make it argparse or lambda'able later on
-with open('targets.txt', 'r') as targetfile:
-        targetlist = targetfile.read().splitlines() # \n removal hax
-        for i in targetlist:
-                checkdomain(str(i), apikey)
+#with open('targets.txt', 'r') as targetfile:
+#       targetlist = targetfile.read().splitlines() # \n removal hax
+#       for i in targetlist:
+#               checkdomain(str(i), apikey)
