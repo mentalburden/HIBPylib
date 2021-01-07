@@ -1,13 +1,5 @@
 #!/usr/bin/python3
 
-#flow:
-#target.txt file is fed to script, each line a domain, \n delim'ed
-#each line gets checked for a breach
-#if breach found, the newest and oldest breaches/events are pulled
-#and if breach found, pull all usersnames in dump if able (should be able to recurse this, maybe)
-#everything is shoved into a clean array
-#Array to csv, then do latex report gen and nosql posts
-
 #done: check for plaintext domain, check for full plaintext addy, generate first.last and flast users for domain and check all
 
 #needs: lambda compat POST/PUT input and response to API'ify script (WIP), make jsontoarray -> csv/lambda response happen
@@ -66,7 +58,7 @@ def genfirstdotlast(fnames, lnames, domain):
 
 
 def genletterdotlast(lnames, domain):
-        #t.chonksmith@whatever.net
+        #tchonksmith@whatever.net
         thisarray = []
         alphabet = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']
         for lname in lnames:
