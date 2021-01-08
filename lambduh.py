@@ -7,8 +7,8 @@ s3_client = boto3.client('s3')
 webber = urllib3.PoolManager()
 
 apiurl = 'https://haveibeenpwned.com/api/v3'
-apikey = "noway" #MB/ owned api key, good till 6FEB20
-bucket_name = "hibp-scraper-emilyt"
+apikey = "no" #MB/Emily owned api key, good till 6FEB20
+bucket_name = "hibp-scraper-"
 s3_fullpath = "testchonkers/"
 
 #stuff for later starts here
@@ -37,6 +37,13 @@ def genletterdotlast(lnames, domain):
 
 #hibp to s3/csv starts here
 
+def checkuserisbrokenrightnow(query, apikey): #needs to get moved to urllib3 instead, requests is jacked up for boto/lambda
+        cleanquery = query.replace('@',"%40") #gets around using urllib for encoding
+        apiendpoint = apiurl + '/breachedaccount/' + cleanquery
+        headerboi =  {'user-agent': 'MBdevops v1 hibpscript','hibp-api-key': str(apikey)}
+        req = requests.get(apiendpoint, headers=headerboi)
+        print(req.content)
+
 def jsontoarray(thisjason):
         #grabs all the important stuff and creates a str array
         #shrink this to one liners later on and fix the nonetype error
@@ -61,13 +68,6 @@ def checkdomain(query, apikey):
         except:
                 return [str(query), "no-breaches-found", "no-breaches-found", "no-breaches-found"]
 
-def checkuserisbrokenrightnow(query, apikey): #needs to get moved to urllib3 instead, requests is jacked up for boto/lambda
-        cleanquery = query.replace('@',"%40") #gets around using urllib for encoding
-        apiendpoint = apiurl + '/breachedaccount/' + cleanquery
-        headerboi =  {'user-agent': 'MBdevops v1 hibpscript','hibp-api-key': str(apikey)}
-        req = requests.get(apiendpoint, headers=headerboi)
-        print(req.content)
-
 def readfroms3(filetoread):
         s3 = boto3.resource("s3")
         thisfile = s3.Object(bucket_name, filetoread)
@@ -84,13 +84,14 @@ def checkfileexists(domain):
                 return None
 
 def writetos3(domain, newarray, isnew, currentcontent):
+        #Whateven is this trash, rewrite this crap... split out the oldfile + newfile stuff tomorrow into its own func
         chonk = ""
         if isnew is True:
                 for i in newarray:
                         chonk += str(i) + ", "
                 chonk += "\n"
         elif isnew is False:
-                chonk = currentcontent + "\n"
+                chonk = currentcontent
                 for i in newarray:
                         chonk += str(i) + ", "
                 chonk += "\n"
@@ -106,8 +107,7 @@ def updates3file(domain, outarray):
         elif filestate is None:
                 writetos3(domain, outarray, True, "NOPE")
 
-###main starts here sorta
-def lambda_handler(event, context):
+def targetlistrunner():
     targets = readfroms3("targets.txt").splitlines() #array'ify the target list
     for target in targets:
         print(target)
@@ -116,3 +116,8 @@ def lambda_handler(event, context):
                 updates3file(str(target), chonklet)
         else:
                 updates3file(str(target), [str(target), "No-Breach-Found", "Datestamp-here", "somethingelse-here"])
+        
+
+###main starts here sorta
+def lambda_handler(event, context):
+    targetlistrunner()
