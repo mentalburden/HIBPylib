@@ -6,9 +6,10 @@ import urllib3
 s3_client = boto3.client('s3')
 webber = urllib3.PoolManager()
 
+apilimit = 1.5 #figure out tighter limit later, just set runtime to 10min+
 apiurl = 'https://haveibeenpwned.com/api/v3'
-apikey = "no" #MB/Emily owned api key, good till 6FEB20
-bucket_name = "hibp-scraper-"
+apikey = "" #MB/ owned api key, good till 6FEB20
+bucket_name = "hibp-scraper-emilyt"
 s3_fullpath = "testchonkers/"
 
 #stuff for later starts here
@@ -37,12 +38,19 @@ def genletterdotlast(lnames, domain):
 
 #hibp to s3/csv starts here
 
-def checkuserisbrokenrightnow(query, apikey): #needs to get moved to urllib3 instead, requests is jacked up for boto/lambda
-        cleanquery = query.replace('@',"%40") #gets around using urllib for encoding
+def checkuser(query, apikey): 
+        cleanquery = query.replace('@',"%40") #switch back to urllib encode later
         apiendpoint = apiurl + '/breachedaccount/' + cleanquery
         headerboi =  {'user-agent': 'MBdevops v1 hibpscript','hibp-api-key': str(apikey)}
-        req = requests.get(apiendpoint, headers=headerboi)
-        print(req.content)
+        req = webber.request('GET', apiendpoint, headers=headerboi)
+        reqjson = json.loads(req.data.decode('utf-8'))
+        try:
+                jason = jsontoarray(reqjson)
+                time.sleep(apilimit)
+                return jason
+        except:
+                time.sleep(apilimit)
+                return [str(query), "no-breaches-found", "no-breaches-found", "no-breaches-found"]
 
 def jsontoarray(thisjason):
         #grabs all the important stuff and creates a str array
@@ -64,8 +72,10 @@ def checkdomain(query, apikey):
         reqjson = json.loads(req.data.decode('utf-8'))
         try:
                 jason = jsontoarray(reqjson)
+                time.sleep(apilimit)
                 return jason
         except:
+                time.sleep(apilimit)
                 return [str(query), "no-breaches-found", "no-breaches-found", "no-breaches-found"]
 
 def readfroms3(filetoread):
@@ -76,7 +86,7 @@ def readfroms3(filetoread):
         return rawfile
         
 def checkfileexists(domain):
-        s3_path = s3_fullpath + domain + "-record.csv" #globalize these later you dumdum
+        s3_path = s3_fullpath + domain + "-record.csv"
         try:
                 obj = s3_client.head_object(Bucket=bucket_name, Key=s3_path)
                 return s3_path
@@ -84,7 +94,6 @@ def checkfileexists(domain):
                 return None
 
 def writetos3(domain, newarray, isnew, currentcontent):
-        #Whateven is this trash, rewrite this crap... split out the oldfile + newfile stuff tomorrow into its own func
         chonk = ""
         if isnew is True:
                 for i in newarray:
@@ -102,22 +111,33 @@ def writetos3(domain, newarray, isnew, currentcontent):
 def updates3file(domain, outarray):
         filestate = checkfileexists(domain)
         if filestate is not None:
-                currentcontent = readfroms3(filestate) #Cast old file read as string for easier \n handling
-                writetos3(domain, outarray, False, currentcontent)
+                currentcontent = readfroms3(filestate) 
+                writetos3(domain, outarray, False, currentcontent) # stupid bool, change it later dumdum
         elif filestate is None:
                 writetos3(domain, outarray, True, "NOPE")
 
 def targetlistrunner():
-    targets = readfroms3("targets.txt").splitlines() #array'ify the target list
-    for target in targets:
-        print(target)
-        chonklet = checkdomain(target, apikey)
-        if chonklet is not None:
-                updates3file(str(target), chonklet)
-        else:
-                updates3file(str(target), [str(target), "No-Breach-Found", "Datestamp-here", "somethingelse-here"])
+        validtargets = []
+        targets = readfroms3("targets.txt").splitlines() #array'ify the target list
+        for target in targets:
+                print(target)
+                chonklet = checkdomain(target, apikey)
+                if chonklet is not None:
+                        updates3file(str(target), chonklet)
+                        validtargets.append(target)
+                else:
+                        updates3file(str(target), [str(target), "No-Breach-Found", "Datestamp-here", "somethingelse-here"])
+        return validtargets
         
+def userbrutefirstlast(domain):
+        #blah... needs to be valid breach domain
+        #then spin up username gen (or check for dc/user dump file)
+        # foreach addy checkuser(), spit any valid records into arraybanged csv
+        return "bleh"
 
 ###main starts here sorta
 def lambda_handler(event, context):
-    targetlistrunner()
+        targets = targetlistrunner() #shrink this func chain, too sprawling
+        print(targets)
+        for target in targets:
+                userbrutefirstlast(target)
