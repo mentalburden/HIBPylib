@@ -1,9 +1,13 @@
 import time
 import json
-from botocore.vendored import requests #hacky fix, need to find the "lambda" way to do requests
+import boto3
+import urllib3
+
+s3_client = boto3.client('s3')
+webber = urllib3.PoolManager()
 
 apiurl = 'https://haveibeenpwned.com/api/v3'
-apikey = "hahayeahrightimnotthattiredyet"
+apikey = "noway" 
 reportout = ''
 lnamefile = "lnames.txt"
 fnamefile = "fnames.txt"
@@ -26,13 +30,14 @@ def jsontoarray(thisjason):
 def checkdomain(query, apikey):
         apiendpoint = apiurl + '/breaches/?domain=' + query
         headerboi =  {'user-agent': 'MBdevops v1 hibpscript','hibp-api-key': str(apikey)}
-        req = requests.get(apiendpoint, headers=headerboi)
-        jason = jsontoarray(req.json())
-        if jason is not None:
-                #start drilldown func here for good hit
-                print(jason)
-        else:
-                print("Nothing found for " + query)
+        req = webber.request('GET', apiendpoint, headers=headerboi)
+        reqjson = json.loads(req.data.decode('utf-8'))
+        print(reqjson)
+        try:
+                jason = jsontoarray(reqjson)
+                return jason
+        except:
+                return ["nope", "nope", "nope", "nope"]
 
 def checkuser(query, apikey):
         cleanquery = query.replace('@',"%40") #gets around using urllib for encoding
@@ -61,11 +66,30 @@ def genletterdotlast(lnames, domain):
                                 thisarray.append(letter + lname.replace("\n", '') + domain)
         return thisarray
 
+def writetos3(domain, outarray):
+        bucket_name = "hibp-scraper-"
+        try:
+               chonk = ','.join(outarray)
+        except:
+                chonk = "none-found, , , "
+        encoded_string = chonk.encode("utf-8")
+        #lambda_path = "/tmp/" + domain + "-record.csv"
+        s3_path = "testchonkers/" + domain + "-record.csv"
+        s3 = boto3.resource("s3")
+        s3.Bucket(bucket_name).put_object(Key=s3_path, Body=encoded_string)
+        
+def readfroms3(filetoread):
+        bucket_name = "hibp-scraper-"
+        s3 = boto3.resource("s3")
+        thisfile = s3.Object(bucket_name, filetoread)
+        rawfile = thisfile.get()['Body'].read().decode('utf-8')
+        return rawfile.splitlines()
+
 ###main starts here sorta
 def lambda_handler(event, context):
-    chonker = event[("chonker")]
-    chonklet = checkdomain(chonker, apikey)
-    return 
-    {
-        "message" : chonklet
-    }
+    targets = readfroms3("targets.txt")
+    for target in targets:
+        print(target)
+        chonklet = checkdomain(target, apikey)
+        print(chonklet)
+        writetos3(str(target), chonklet)
