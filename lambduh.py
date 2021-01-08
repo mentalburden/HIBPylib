@@ -7,7 +7,7 @@ s3_client = boto3.client('s3')
 webber = urllib3.PoolManager()
 
 apiurl = 'https://haveibeenpwned.com/api/v3'
-apikey = "noway" 
+apikey = "nope" #MB/ owned api key, good till 6FEB20
 reportout = ''
 lnamefile = "lnames.txt"
 fnamefile = "fnames.txt"
@@ -23,7 +23,7 @@ def jsontoarray(thisjason):
                         pwncount = str(chonk['PwnCount'])
                         return [name, mdate, longdesc, pwncount]
         except:
-                        return ["nope", "nope", "nope", "nope"]
+                        return
 
 
 
@@ -32,14 +32,13 @@ def checkdomain(query, apikey):
         headerboi =  {'user-agent': 'MBdevops v1 hibpscript','hibp-api-key': str(apikey)}
         req = webber.request('GET', apiendpoint, headers=headerboi)
         reqjson = json.loads(req.data.decode('utf-8'))
-        print(reqjson)
         try:
                 jason = jsontoarray(reqjson)
                 return jason
         except:
-                return ["nope", "nope", "nope", "nope"]
+                return [str(query), "no-breaches-found", "no-breaches-found", "no-breaches-found"]
 
-def checkuser(query, apikey):
+def checkuserisbrokenrightnow(query, apikey): #needs to get moved to urllib3 instead, requests is jacked up for boto/lambda
         cleanquery = query.replace('@',"%40") #gets around using urllib for encoding
         apiendpoint = apiurl + '/breachedaccount/' + cleanquery
         headerboi =  {'user-agent': 'MBdevops v1 hibpscript','hibp-api-key': str(apikey)}
@@ -79,11 +78,30 @@ def writetos3(domain, outarray):
         s3.Bucket(bucket_name).put_object(Key=s3_path, Body=encoded_string)
         
 def readfroms3(filetoread):
-        bucket_name = "hibp-scraper-"
+        bucket_name = "hibp-scraper-emilyt"
         s3 = boto3.resource("s3")
         thisfile = s3.Object(bucket_name, filetoread)
         rawfile = thisfile.get()['Body'].read().decode('utf-8')
+        print(rawfile)
         return rawfile.splitlines()
+        
+def checkfileexists(domain):
+        bucket_name = "hibp-scraper-"
+        s3_path = "testchonkers/" + domain + "-record.csv" #globalize these later you dumdum
+        try:
+                obj = s3_client.head_object(Bucket=bucket_name, Key=s3_path)
+                return s3_path
+        except:
+                return None
+        
+def updates3file(domain, outarray):
+        filestate = checkfileexists(domain)
+        if filestate is not None:
+                thisfile = readfroms3(filestate)
+                newout = str(thisfile) + str(outarray)
+                writetos3(domain, newout)
+        elif filestate is None:
+                writetos3(domain, outarray)
 
 ###main starts here sorta
 def lambda_handler(event, context):
@@ -91,5 +109,4 @@ def lambda_handler(event, context):
     for target in targets:
         print(target)
         chonklet = checkdomain(target, apikey)
-        print(chonklet)
-        writetos3(str(target), chonklet)
+        updates3file(str(target), chonklet)
