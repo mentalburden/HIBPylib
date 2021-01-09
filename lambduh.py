@@ -1,3 +1,27 @@
+####psudocode for HIBP script:
+#lambda entrypoint 
+####currently using a lambda cronjob/trigger/lambda test
+####can turn this into an api style call later if needs to be fired from c2 box
+#read target domain list (target.txt) from s3:
+#	for each valid domain:
+#		check for breaches
+#		try
+#			if breach exists:
+#				create/append csv with breach details
+#				check for userlist for domain
+#				append valid breach name to worker array; for each in array:
+#					if check true:
+#						run check for every email (whitebox username check) 
+#						#need an example dc/domain user dump to work with
+#					if check false:
+#						dynamically generate username combos from common wordlist (blackbox username check) 
+#						#uses short kaggle tax/voter record names, need to build bigger/better lists
+#			elif no breach exists:
+#				create/append csv with "no breach found" message
+#			job log out#
+#		catch
+#			job log out with error code
+
 import time
 import json
 import boto3
